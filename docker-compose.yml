@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: what_should_happen_next
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_MODEL=${LLM_MODEL:-gemini-2.5-flash}
