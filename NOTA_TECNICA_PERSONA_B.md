@@ -7,7 +7,7 @@ Este documento contiene los bloques listos para entregar a la **Persona A** (par
 ## 1. Bloques para la Nota Técnica (Entregar a Persona A)
 
 ### IA Utilizada
-Se implementó **Google Gemini API** a través del SDK oficial `google-genai` (modelo `gemini-2.5-flash` con `temperature=0` para reproducibilidad). La IA actúa estrictamente como analista semántico: extrae la intención del cliente, identifica hechos e información faltante, y únicamente puede sugerir una acción dentro del catálogo ya validado y permitido por el motor de reglas determinista de Persona A. La IA no dicta reglas de negocio.
+Se implementó **Google Gemini API** a través del SDK oficial `google-genai` (modelo `gemini-3.8-flash` con `temperature=0` para reproducibilidad). La IA actúa estrictamente como analista semántico: extrae la intención del cliente, identifica hechos e información faltante, y únicamente puede sugerir una acción dentro del catálogo ya validado y permitido por el motor de reglas determinista de Persona A. La IA no dicta reglas de negocio.
 
 ### Distinción Hechos / Inferencias / Faltantes
 La IA genera una estructura JSON estricta donde cada hecho observado (`hechos_observados`) se asocia obligatoriamente a un `event_id` verificable; las deducciones del modelo (`inferencias`) incluyen su nivel de certeza y eventos de respaldo; y las lagunas de contexto se declaran abiertamente en `informacion_faltante`. En la interfaz de usuario, estos tres elementos se exponen en paneles diferenciados para máxima transparencia y auditoría.

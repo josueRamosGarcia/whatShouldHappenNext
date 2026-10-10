@@ -1,6 +1,6 @@
 # Nota Técnica: What Should Happen Next?
 **Prototipo de Decisiones Comerciales Asistidas por IA y Reglas Deterministas**  
-*Hackathon de 48 horas · ByeCode*
+*Hackathon RoadToTech 2026 · ByeCode*
 
 ---
 
