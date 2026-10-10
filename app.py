@@ -8,6 +8,7 @@ inspeccion detallada por caso, deteccion de que cambio entre versiones y exporta
 
 import os
 import json
+import html
 from datetime import timedelta
 import streamlit as st
 
@@ -165,6 +166,69 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         margin-bottom: 1rem;
     }
+
+    /* Mini tarjetas de la ficha comercial */
+    .mini-metric {
+        border-radius: 8px;
+        padding: 0.45rem 0.7rem;
+        background-color: var(--secondary-background-color);
+        border-left: 3px solid #1E88E5;
+    }
+    .mini-metric .mm-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.65;
+        margin: 0;
+    }
+    .mini-metric .mm-value {
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.25;
+        margin: 0;
+        word-break: break-word;
+    }
+
+    /* Linea de tiempo de eventos */
+    .ev-item {
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+        background-color: var(--secondary-background-color);
+        border-left: 3px solid #43A047;
+        font-size: 0.85rem;
+    }
+    .ev-head { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-bottom: 0.25rem; }
+    .ev-id { font-weight: 700; }
+    .ev-type {
+        padding: 0.05rem 0.45rem; border-radius: 4px; font-size: 0.72rem; font-weight: 600;
+        background-color: rgba(30, 136, 229, 0.15); color: #1E88E5;
+    }
+    .ev-date { font-size: 0.72rem; opacity: 0.6; }
+    .ev-data { margin: 0; padding-left: 0; list-style: none; }
+    .ev-data li { margin: 0.1rem 0; }
+    .ev-data .k { opacity: 0.65; }
+
+    /* Recomendacion vigente */
+    .rec-card {
+        border-radius: 10px;
+        padding: 0.9rem 1rem;
+        background-color: var(--secondary-background-color);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        margin-bottom: 0.6rem;
+    }
+    .rec-action { font-size: 1.3rem; font-weight: 700; margin: 0 0 0.3rem 0; }
+    .rec-pill {
+        display: inline-block; padding: 0.15rem 0.55rem; border-radius: 999px;
+        font-size: 0.75rem; font-weight: 600; margin: 0 0.3rem 0.3rem 0;
+        background-color: rgba(30, 136, 229, 0.12); color: #1E88E5; border: 1px solid rgba(30, 136, 229, 0.35);
+    }
+    .rec-pill.high { background-color: rgba(46,125,50,0.15); color: #2E7D32; border-color: #81C784; }
+    .rec-pill.medium { background-color: rgba(239,108,0,0.15); color: #EF6C00; border-color: #FFB74D; }
+    .rec-pill.low { background-color: rgba(66,66,66,0.15); color: #757575; border-color: #BDBDBD; }
+    .rec-pill.danger { background-color: rgba(198,40,40,0.15); color: #C62828; border-color: #E57373; }
+    .rec-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; margin: 0.5rem 0 0.1rem 0; }
+    .rec-text { font-size: 0.88rem; margin: 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -183,6 +247,88 @@ def leer(ruta: str) -> str:
     """Lee el contenido de un archivo UTF-8."""
     with open(ruta, encoding='utf-8') as f:
         return f.read()
+
+
+def _esc(valor) -> str:
+    """Escapa texto para insertarlo de forma segura en HTML."""
+    return html.escape(str(valor))
+
+
+def _fmt_valor(valor) -> str:
+    """Formatea un valor de evento de forma legible (visual)."""
+    if isinstance(valor, (dict, list)):
+        return json.dumps(valor, ensure_ascii=False)
+    if valor is None or valor == '':
+        return '-'
+    return str(valor)
+
+
+def mini_metric(col, etiqueta, valor):
+    """Tarjeta compacta de metrica (reemplazo visual de st.metric)."""
+    col.markdown(
+        f"<div class='mini-metric'><p class='mm-label'>{_esc(etiqueta)}</p>"
+        f"<p class='mm-value'>{_esc(valor)}</p></div>",
+        unsafe_allow_html=True
+    )
+
+
+def render_evento(ev):
+    """Muestra un evento como tarjeta de linea de tiempo."""
+    fecha_str = ev['_dt'].strftime('%Y-%m-%d %H:%M UTC')
+    data = ev.get('data', {}) or {}
+    if isinstance(data, dict) and data:
+        items = ''.join(
+            f"<li><span class='k'>{_esc(k)}:</span> {_esc(_fmt_valor(v))}</li>"
+            for k, v in data.items()
+        )
+    else:
+        items = f"<li><span class='k'>{_esc(_fmt_valor(data))}</span></li>"
+    st.markdown(
+        f"<div class='ev-item'><div class='ev-head'>"
+        f"<span class='ev-id'>{_esc(ev['event_id'])}</span>"
+        f"<span class='ev-type'>{_esc(ev['event_type'])}</span>"
+        f"<span class='ev-date'>{_esc(fecha_str)}</span></div>"
+        f"<ul class='ev-data'>{items}</ul></div>",
+        unsafe_allow_html=True
+    )
+
+
+def render_recomendacion(rec):
+    """Muestra la recomendacion vigente en formato legible en lugar de JSON crudo."""
+    conf = str(rec.get('confidence') or '')
+    riesgo = str(rec.get('risk_level') or '')
+    revision = bool(rec.get('requires_human_review'))
+    pills = f"<span class='rec-pill'>⏱ {_esc(rec.get('timing') or '-')}</span>"
+    if rec.get('scheduled_for'):
+        pills += f"<span class='rec-pill'>📅 {_esc(rec.get('scheduled_for'))}</span>"
+    pills += f"<span class='rec-pill {_esc(conf)}'>Confianza: {_esc(conf or '-')}</span>"
+    pills += f"<span class='rec-pill {_esc(riesgo)}'>Riesgo: {_esc(riesgo or '-')}</span>"
+    pills += (
+        "<span class='rec-pill danger'>👤 Requiere revisión humana</span>"
+        if revision else "<span class='rec-pill'>👤 Sin revisión humana</span>"
+    )
+
+    evid = rec.get('evidence_event_ids') or []
+    evid_html = ' '.join(f"<span class='rec-pill'>{_esc(e)}</span>" for e in evid) or '-'
+    faltantes = rec.get('missing_information') or []
+    falt_html = (
+        '<ul style="margin:0;padding-left:1.1rem;font-size:0.88rem;">'
+        + ''.join(f'<li>{_esc(f)}</li>' for f in faltantes) + '</ul>'
+    ) if faltantes else "<p class='rec-text'>Ninguna</p>"
+
+    st.markdown(
+        f"<div class='rec-card'>"
+        f"<p class='rec-action'>{_esc(rec.get('action') or '-')}</p>"
+        f"{pills}"
+        f"<p class='rec-label'>Motivo</p><p class='rec-text'>{_esc(rec.get('reason') or '-')}</p>"
+        f"<p class='rec-label'>Razón de la confianza</p><p class='rec-text'>{_esc(rec.get('confidence_reason') or '-')}</p>"
+        f"<p class='rec-label'>Evidencia</p><div>{evid_html}</div>"
+        f"<p class='rec-label'>Información faltante</p>{falt_html}"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+    with st.expander("Ver JSON original"):
+        st.json(rec)
 
 
 # Barra lateral de navegacion y controles
@@ -294,10 +440,10 @@ with tab2:
 
         st.markdown(f"#### 💼 Ficha Comercial: `{cid}` ({diag['monto_formateado']})")
         cm1, cm2, cm3, cm4 = st.columns(4)
-        cm1.metric("Modelo Contratación", diag['modelo_sugerido'].split('(')[0].strip(), diag['monto_formateado'])
-        cm2.metric("Etapa en Embudo", diag['etapa'])
-        cm3.metric("Temperatura Lead", diag['temperatura'])
-        cm4.metric("Foco de Consulta", diag['tipo_objecion'])
+        mini_metric(cm1, "Modelo Contratación", diag['modelo_sugerido'].split('(')[0].strip())
+        mini_metric(cm2, "Etapa en Embudo", diag['etapa'])
+        mini_metric(cm3, "Temperatura Lead", diag['temperatura'])
+        mini_metric(cm4, "Foco de Consulta", diag['tipo_objecion'])
         st.divider()
 
         # Deteccion de bloqueos en la parte superior sin hacer scroll (vital para P03 y P04)
@@ -313,36 +459,15 @@ with tab2:
             st.subheader('📜 Historial cronológico de eventos')
             if cid in store.casos:
                 eventos_ordenados = sorted(store.casos[cid], key=lambda e: (e['_dt'], e['_orden']))
-                for ev in eventos_ordenados:
-                    fecha_str = ev['_dt'].strftime('%Y-%m-%d %H:%M:%S UTC')
-                    data_str = json.dumps(ev.get('data', {}), ensure_ascii=False)
-                    st.markdown(f"- **`{ev['event_id']}`** `{fecha_str}` | `{ev['event_type']}`  \n  `{data_str}`")
+                with st.container(height=520, border=False):
+                    for ev in eventos_ordenados:
+                        render_evento(ev)
             else:
                 st.write("No hay eventos registrados para este caso.")
 
         with col_der:
             st.subheader('🎯 Recomendación vigente')
-            st.json(r)
-
-            interp = meta.get('interpretacion')
-            if interp:
-                st.markdown("#### 🧠 Interpretación de la IA")
-                with st.expander("Ver hechos, inferencias y faltantes", expanded=True):
-                    st.write("**Hechos observados:**")
-                    for h in interp.get('hechos_observados', []):
-                        st.markdown(f"- {h.get('texto')} (`{h.get('event_id')}`)")
-
-                    st.write("**Inferencias:**")
-                    for i in interp.get('inferencias', []):
-                        st.markdown(f"- {i.get('texto')} *(Certeza: `{i.get('certeza')}`)*")
-
-                    st.write("**Información faltante:**")
-                    faltantes = interp.get('informacion_faltante', [])
-                    if faltantes:
-                        for f in faltantes:
-                            st.markdown(f"- {f}")
-                    else:
-                        st.markdown("- *Ninguna reportada*")
+            render_recomendacion(r)
 
             # Seccion Qué Cambió (muestra de valor clave para P06 tras updates.jsonl)
             ch = cambios(hist, cid)
@@ -351,6 +476,31 @@ with tab2:
                 st.info(f"🆕 **Eventos nuevos recibidos:** {', '.join(ch['eventos_nuevos']) or 'Ninguno'}")
                 for campo, antes, ahora in ch['campos']:
                     st.markdown(f"- **`{campo}`:** `{antes}` ➡️ **`{ahora}`**")
+
+        # Interpretacion de la IA a todo el ancho, en 3 columnas para reducir scroll vertical
+        interp = meta.get('interpretacion')
+        if interp:
+            st.markdown("#### 🧠 Interpretación de la IA")
+            with st.expander("Ver hechos, inferencias y faltantes", expanded=True):
+                ia1, ia2, ia3 = st.columns(3)
+                with ia1:
+                    st.write("**Hechos observados:**")
+                    for h in interp.get('hechos_observados', []):
+                        st.markdown(f"- {h.get('texto')} (`{h.get('event_id')}`)")
+
+                with ia2:
+                    st.write("**Inferencias:**")
+                    for i in interp.get('inferencias', []):
+                        st.markdown(f"- {i.get('texto')} *(Certeza: `{i.get('certeza')}`)*")
+
+                with ia3:
+                    st.write("**Información faltante:**")
+                    faltantes = interp.get('informacion_faltante', [])
+                    if faltantes:
+                        for f in faltantes:
+                            st.markdown(f"- {f}")
+                    else:
+                        st.markdown("- *Ninguna reportada*")
 
         # Seccion Interactiva: Bucle Cerrado de Seguimiento Comercial
         st.markdown("---")
