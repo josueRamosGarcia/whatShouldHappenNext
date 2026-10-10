@@ -185,3 +185,5 @@ def cargar_eventos(texto: str, store: Store) -> dict:
         'duplicados': store.duplicados,
         'errores': len(store.errores)
     }
+
+#cambio de prueba
