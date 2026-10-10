@@ -1,0 +1,102 @@
+[
+  {
+    "case_id": "P01",
+    "action": "resolve_objection",
+    "timing": "within_24h",
+    "scheduled_for": null,
+    "reason": "El cliente hizo una pregunta (P01-e2) y no hay bloqueos: conviene responderla.",
+    "evidence_event_ids": [
+      "P01-e2"
+    ],
+    "confidence": "medium",
+    "confidence_reason": "Pregunta explicita; falta el dato interno para responder con precision.",
+    "risk_level": "low",
+    "requires_human_review": false,
+    "missing_information": [
+      "Dato interno necesario para responder la pregunta del cliente"
+    ]
+  },
+  {
+    "case_id": "P02",
+    "action": "wait",
+    "timing": "on_new_information",
+    "scheduled_for": null,
+    "reason": "Solo hay aperturas o ninguna senal del cliente (R5): no justifican contacto urgente ni descuentos. Reevaluar cuando llegue un mensaje o un evento nuevo.",
+    "evidence_event_ids": [
+      "P02-e2"
+    ],
+    "confidence": "low",
+    "confidence_reason": "Las aperturas no demuestran intencion de compra.",
+    "risk_level": "low",
+    "requires_human_review": false,
+    "missing_information": [
+      "Mensaje o respuesta del cliente que indique su intencion"
+    ]
+  },
+  {
+    "case_id": "P03",
+    "action": "wait",
+    "timing": "at_date",
+    "scheduled_for": "2026-10-12T15:00:00Z",
+    "reason": "Contacto bloqueado (antes de contact_not_before). Reevaluar el 2026-10-12T15:00:00Z.",
+    "evidence_event_ids": [
+      "P03-e2",
+      "P03-e3"
+    ],
+    "confidence": "high",
+    "confidence_reason": "La restriccion es explicita y verificable; no se conoce la intencion de compra.",
+    "risk_level": "low",
+    "requires_human_review": false,
+    "missing_information": []
+  },
+  {
+    "case_id": "P04",
+    "action": "escalate",
+    "timing": "within_24h",
+    "scheduled_for": null,
+    "reason": "El contacto esta prohibido (contact_allowed=false) pero el cliente escribio (P04-e2). Se solicita revision interna de una persona responsable; no se contacta al cliente.",
+    "evidence_event_ids": [
+      "P04-e2",
+      "P04-e3"
+    ],
+    "confidence": "medium",
+    "confidence_reason": "Restriccion explicita; la intencion del cliente es ambigua y no se puede aclarar contactandolo.",
+    "risk_level": "medium",
+    "requires_human_review": true,
+    "missing_information": [
+      "Motivo y vigencia de la prohibicion de contacto"
+    ]
+  },
+  {
+    "case_id": "P05",
+    "action": "no_action",
+    "timing": "not_applicable",
+    "scheduled_for": null,
+    "reason": "Caso cerrado (accepted). R1: solo no_action.",
+    "evidence_event_ids": [
+      "P05-e3"
+    ],
+    "confidence": "high",
+    "confidence_reason": "El cierre es definitivo y explicito.",
+    "risk_level": "low",
+    "requires_human_review": false,
+    "missing_information": []
+  },
+  {
+    "case_id": "P06",
+    "action": "wait",
+    "timing": "at_date",
+    "scheduled_for": "2026-10-10T14:00:00Z",
+    "reason": "Contacto bloqueado (menos de 24h desde el ultimo contacto). Reevaluar el 2026-10-10T14:00:00Z.",
+    "evidence_event_ids": [
+      "P06-e2"
+    ],
+    "confidence": "high",
+    "confidence_reason": "La restriccion es explicita y verificable; no se conoce la intencion de compra.",
+    "risk_level": "low",
+    "requires_human_review": false,
+    "missing_information": [
+      "Respuesta del cliente tras el ultimo contacto"
+    ]
+  }
+]
