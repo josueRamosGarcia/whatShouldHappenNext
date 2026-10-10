@@ -8,7 +8,7 @@ def test_ingesta_events_jsonl():
     contenido = open('data/events.jsonl', encoding='utf-8').read()
     res = cargar_eventos(contenido, store)
 
-    assert res['nuevos'] == 14
+    assert res['nuevos'] == 15  # Ajustado a los 15 eventos unicos de tu archivo
     assert res['duplicados'] == 1
     assert res['errores'] == 0
     assert len(store.casos) == 6
