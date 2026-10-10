@@ -8,17 +8,20 @@ inspeccion detallada por caso, deteccion de que cambio entre versiones y exporta
 
 import os
 import json
+from datetime import timedelta
 import streamlit as st
 
 from src.ingest import Store, cargar_eventos, parse_fecha
 from src.history import registrar, cambios, exportar_json
+from src.state import construir_estado
+from src.devshop import analizar_oportunidad, registrar_intervencion_comercial
 
 # Importacion dinamica de pipeline con fallback seguro
 try:
-    from src.pipeline import cargar_manifest, evaluar_todo
+    from src.pipeline import cargar_manifest, evaluar_todo, evaluar_caso
 except (ImportError, AttributeError):
     try:
-        from pipeline import cargar_manifest, evaluar_todo
+        from pipeline import cargar_manifest, evaluar_todo, evaluar_caso
     except (ImportError, AttributeError):
         # Fallback provisional si Persona A aun no ha comiteado src/pipeline.py
         from src.state import construir_estado
@@ -126,7 +129,7 @@ except (ImportError, AttributeError):
 
 # Configuracion de pagina Streamlit
 st.set_page_config(
-    page_title='Qué debe pasar después',
+    page_title='DevDeal Engine · Decisiones Comerciales',
     page_icon='🧭',
     layout='wide',
     initial_sidebar_state='expanded'
@@ -184,7 +187,8 @@ def leer(ruta: str) -> str:
 
 # Barra lateral de navegacion y controles
 with st.sidebar:
-    st.markdown("<h2 style='margin-bottom:0;'>🧭 Qué debe pasar después</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='margin-bottom:0;'>🧭 DevDeal Engine</h2>", unsafe_allow_html=True)
+    st.caption("Gobernanza comercial para Dev Shops y Consultoras B2B")
     st.caption(f"⏱️ **Hora de evaluación:** `{st.session_state.now.strftime('%Y-%m-%dT%H:%M:%SZ')}`")
     st.divider()
 
@@ -252,16 +256,21 @@ with tab1:
         r = v['rec']
         meta = v['meta']
         bloqueos_str = ', '.join(meta.get('bloqueos', {}).values()) if meta.get('bloqueos') else 'No'
+        estado_cid = construir_estado(store.casos[cid]) if cid in store.casos else {}
+        diag = analizar_oportunidad(estado_cid, meta.get('interpretacion'), st.session_state.now)
 
         filas.append({
             'Caso': cid,
-            'Acción': r.get('action'),
+            'Cotización': diag['monto_formateado'],
+            'Etapa Comercial': diag['etapa'],
+            'Temperatura': diag['temperatura'],
+            'Acción Recomendada': r.get('action'),
             'Cuándo (Timing)': r.get('timing'),
             'Programado Para': r.get('scheduled_for') or '-',
             'Confianza': r.get('confidence'),
             'Riesgo': r.get('risk_level'),
             'Revisión Humana': 'Sí' if r.get('requires_human_review') else 'No',
-            'Contacto Bloqueado': bloqueos_str,
+            'Bloqueado': bloqueos_str,
             'Origen': meta.get('origen'),
             'Versiones': len(hist[cid])
         })
@@ -278,6 +287,18 @@ with tab2:
         cid = st.selectbox('Selecciona un caso a inspeccionar:', sorted(hist))
         v = hist[cid][-1]
         r, meta = v['rec'], v['meta']
+
+        # Ficha Comercial y Diagnóstico del Trato
+        estado_cid = construir_estado(store.casos[cid]) if cid in store.casos else {}
+        diag = analizar_oportunidad(estado_cid, meta.get('interpretacion'), st.session_state.now)
+
+        st.markdown(f"#### 💼 Ficha Comercial: `{cid}` ({diag['monto_formateado']})")
+        cm1, cm2, cm3, cm4 = st.columns(4)
+        cm1.metric("Modelo Contratación", diag['modelo_sugerido'].split('(')[0].strip(), diag['monto_formateado'])
+        cm2.metric("Etapa en Embudo", diag['etapa'])
+        cm3.metric("Temperatura Lead", diag['temperatura'])
+        cm4.metric("Foco de Consulta", diag['tipo_objecion'])
+        st.divider()
 
         # Deteccion de bloqueos en la parte superior sin hacer scroll (vital para P03 y P04)
         if meta.get('bloqueos'):
@@ -330,6 +351,87 @@ with tab2:
                 st.info(f"🆕 **Eventos nuevos recibidos:** {', '.join(ch['eventos_nuevos']) or 'Ninguno'}")
                 for campo, antes, ahora in ch['campos']:
                     st.markdown(f"- **`{campo}`:** `{antes}` ➡️ **`{ahora}`**")
+
+        # Seccion Interactiva: Bucle Cerrado de Seguimiento Comercial
+        st.markdown("---")
+        st.markdown("### 🔄 Bucle Cerrado: Registrar Intervención del Ejecutivo")
+        st.caption("¿Se ejecutó la recomendación con el prospecto? Registra el resultado comercial para actualizar el expediente y disparar la siguiente recomendación en tiempo real.")
+
+        with st.expander("⚡ Formulario de Seguimiento Comercial (Closed-Loop)", expanded=True):
+            col_f1, col_f2 = st.columns([1, 1])
+            with col_f1:
+                acciones_cat = ['contact', 'resolve_objection', 'request_information', 'escalate']
+                acc_idx = acciones_cat.index(r.get('action')) if r.get('action') in acciones_cat else 0
+                accion_sel = st.selectbox(
+                    "Acción ejecutada por el ejecutivo:",
+                    acciones_cat,
+                    index=acc_idx,
+                    key=f"fb_acc_{cid}"
+                )
+                res_sel = st.selectbox(
+                    "Resultado o respuesta del prospecto:",
+                    [
+                        "📞 El cliente atendió y tiene una duda de cronograma/sprints",
+                        "⏳ El cliente pidió pausar contacto hasta que sesione su comité",
+                        "❌ No contestó / Llamada a buzón (activa reposo R4)",
+                        "🎯 El cliente aceptó la propuesta y firmó contrato",
+                        "✍️ Mensaje personalizado del cliente"
+                    ],
+                    key=f"fb_res_{cid}"
+                )
+            with col_f2:
+                texto_cliente = ""
+                fecha_bloqueo = None
+                if "pausar contacto" in res_sel:
+                    fecha_d = st.date_input(
+                        "Fecha permitida para volver a contactar:",
+                        value=st.session_state.now.date() + timedelta(days=5),
+                        key=f"fb_date_{cid}"
+                    )
+                    fecha_bloqueo = fecha_d.strftime("%Y-%m-%dT15:00:00Z")
+                    st.info(f"Se registrará restricción R3 hasta `{fecha_bloqueo}`.")
+                elif "duda de cronograma" in res_sel:
+                    texto_cliente = st.text_input(
+                        "Pregunta del cliente:",
+                        value="Recibido. ¿Cuál sería la fecha estimada de entrega del primer sprint?",
+                        key=f"fb_txt_{cid}"
+                    )
+                elif "firmó contrato" in res_sel:
+                    st.success("Se registrará el cierre formal del proyecto como ganado (case.closed: accepted).")
+                elif "No contestó" in res_sel:
+                    st.warning("Se registrará el intento de contacto (activando reposo de 24 horas por regla R4).")
+                else:
+                    texto_cliente = st.text_area(
+                        "Mensaje o notas del cliente:",
+                        placeholder="Escribe lo que respondió el cliente...",
+                        key=f"fb_custom_{cid}"
+                    )
+
+            if st.button("⚡ Registrar Intervención y Reevaluar Caso", type="primary", use_container_width=True, key=f"btn_feed_{cid}"):
+                if "duda de cronograma" in res_sel:
+                    tipo_res = 'respuesta_duda'
+                elif "pausar contacto" in res_sel:
+                    tipo_res = 'pausa_comite'
+                elif "firmó contrato" in res_sel:
+                    tipo_res = 'cierre_exito'
+                elif "No contestó" in res_sel:
+                    tipo_res = 'no_contesto'
+                else:
+                    tipo_res = 'personalizado'
+
+                nuevos_evs = registrar_intervencion_comercial(
+                    store=store,
+                    case_id=cid,
+                    accion_ejecutada=accion_sel,
+                    tipo_resultado=tipo_res,
+                    texto_cliente=texto_cliente,
+                    fecha_desbloqueo_iso=fecha_bloqueo,
+                    now=st.session_state.now
+                )
+                rec_nueva, meta_nueva = evaluar_caso(cid, store, st.session_state.now, usar_ia=usar_ia)
+                registrar(hist, cid, rec_nueva, meta_nueva)
+                st.toast(f"✅ Se registraron {len(nuevos_evs)} eventos y se reevaluó {cid}.", icon="🔄")
+                st.rerun()
     else:
         st.info('Aún no hay casos evaluados. Carga eventos y pulsa Evaluar.')
 
