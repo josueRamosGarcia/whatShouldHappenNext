@@ -102,7 +102,7 @@ pytest
 ## 🧠 Explicación del Uso de IA
 
 El uso de Inteligencia Artificial se rige por los siguientes principios de diseño:
-- **Modelo:** Google Gemini API mediante el SDK oficial `google-genai` (`gemini-2.5-flash`), con `temperature=0.0` para garantizar respuestas estables y reproducibles.
+- **Modelo:** Google Gemini API mediante el SDK oficial `google-genai` (`gemini-3.8-flash`), con `temperature=0.0` para garantizar respuestas estables y reproducibles.
 - **Rol del Modelo:** Actúa exclusivamente como **analista semántico**. El prompt le prohíbe emitir acciones que contradigan las reglas del sistema y exige citar `event_id` reales para cada hecho observado e inferencia.
 - **Protección contra Prompt Injection:** Los mensajes recibidos de clientes se encierran entre etiquetas delimitadoras `<mensaje_cliente>` y el prompt del sistema establece que los textos del cliente son únicamente datos pasivos y nunca instrucciones operativas.
 - **Filtro Determinista de Seguridad:** La salida de la IA pasa por `src/validator.py`. Si el modelo alucina un `event_id`, propone una acción no permitida por R1–R4, o utiliza un timing incompatible, el validador descarta la propuesta de la IA y aplica la decisión base determinista (`src/baseline.py`).

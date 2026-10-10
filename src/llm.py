@@ -34,7 +34,7 @@ def llamar_modelo(system: str, user: str) -> str:
         str: Texto generado por el modelo.
     """
     cliente = _obtener_cliente()
-    modelo = os.environ.get('LLM_MODEL', 'gemini-2.5-flash')
+    modelo = os.environ.get('LLM_MODEL', 'gemini-3.8-flash')
 
     # Configuracion con temperatura 0 para respuestas estables y reproducibles
     config = types.GenerateContentConfig(
