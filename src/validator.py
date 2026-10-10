@@ -107,4 +107,22 @@ def validar_y_corregir(rec: dict, case_id: str, estado: dict, reglas: dict, now)
         if not isinstance(rec['requires_human_review'], bool) or not isinstance(rec['missing_information'], list):
             p.append('tipos invalidos')
 
-        # Regla R5:
+        # Regla R5: Validación contra falsas urgencias sin interacción del cliente
+        if not estado['mensajes']:
+            if a in CONTACTO and t == 'immediate':
+                p.append('R5: aperturas solas no justifican urgencia inmediata')
+            if any(fr in str(rec['reason']).lower() for fr in FRASES_R5):
+                p.append('R5: afirma intencion de compra sin mensajes')
+
+    # Si se detectó algún problema, sustituir por la recomendación base segura
+    if p:
+        return recomendacion_base(case_id, estado, reglas, now), p
+
+    # Ajustes finos sobre recomendaciones aprobadas
+    if rec['action'] == 'escalate':
+        rec['requires_human_review'] = True
+
+    if rec['action'] == 'wait' and 'reevaluar' not in rec['reason'].lower():
+        rec['reason'] += ' Reevaluar cuando llegue informacion nueva o se cumpla la fecha.'
+
+    return rec, []
