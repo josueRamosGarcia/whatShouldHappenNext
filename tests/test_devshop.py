@@ -62,3 +62,27 @@ def test_bucle_retroalimentacion_cliente_responde_libera_r4():
     estado_despues = construir_estado(store.casos['P01'])
     reglas_despues = evaluar_reglas(estado_despues, now + timedelta(hours=1))
     assert 'R4' not in reglas_despues['bloqueos']
+
+
+def test_bucle_con_detalles_conversacion():
+    from src.interpreter import formatear_eventos
+    store = Store()
+    cargar_eventos(open('data/events.jsonl', encoding='utf-8').read(), store)
+    now = datetime(2026, 10, 9, 16, 0, tzinfo=timezone.utc)
+
+    nuevos = registrar_intervencion_comercial(
+        store, 'P01',
+        accion_ejecutada='resolve_objection',
+        tipo_resultado='respuesta_duda',
+        detalles_accion="Se le aclaró que la instalación incluye configuración en AWS y testing",
+        texto_cliente="Entendido. ¿Cuándo inician?",
+        now=now
+    )
+    ev_accion = nuevos[0]
+    assert 'detalles_conversacion' in ev_accion['data']
+    assert "AWS" in ev_accion['data']['detalles_conversacion']
+
+    # Verificar que formatear_eventos incluya lo que dijo el vendedor
+    texto_prompt = formatear_eventos(store.casos['P01'])
+    assert "<lo_que_dijo_el_vendedor>" in texto_prompt
+    assert "configuración en AWS" in texto_prompt

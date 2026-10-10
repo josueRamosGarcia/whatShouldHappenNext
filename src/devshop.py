@@ -110,6 +110,7 @@ def registrar_intervencion_comercial(
     case_id: str,
     accion_ejecutada: str,
     tipo_resultado: str,
+    detalles_accion: str = "",
     texto_cliente: str = "",
     fecha_desbloqueo_iso: str | None = None,
     now: datetime | None = None
@@ -125,6 +126,7 @@ def registrar_intervencion_comercial(
         case_id: Identificador del caso.
         accion_ejecutada: Accion realizada ('contact', 'resolve_objection', 'request_information').
         tipo_resultado: Codigo de resultado ('respuesta_duda', 'no_contesto', 'pausa_comite', 'cierre_exito', 'personalizado').
+        detalles_accion: Lo que el ejecutivo converso o explico al cliente (enriquece el contexto).
         texto_cliente: Texto recibido del cliente o nota de respuesta.
         fecha_desbloqueo_iso: Cadena ISO-8601 si el cliente pidio no ser contactado hasta tal fecha.
         now: Timestamp actual (por defecto datetime actual en UTC).
@@ -140,17 +142,20 @@ def registrar_intervencion_comercial(
     conteo_previo = len(store.casos.get(case_id, [])) + 1
 
     # 1. Registrar siempre el contacto ejecutado por el vendedor (action.executed)
-    # Segun el contrato, action.executed acepta 'contact' o 'request_information'
     action_contrato = 'request_information' if accion_ejecutada == 'request_information' else 'contact'
+    data_accion = {'action': action_contrato}
+    if detalles_accion and detalles_accion.strip():
+        data_accion['detalles_conversacion'] = detalles_accion.strip()
+        data_accion['notas_vendedor'] = f"Intervención {accion_ejecutada}: {detalles_accion.strip()}"
+    else:
+        data_accion['notas_vendedor'] = f"Intervención: {accion_ejecutada}"
+
     ev_accion = {
         'event_id': f"{case_id}-act{conteo_previo}",
         'case_id': case_id,
         'event_type': 'action.executed',
         'occurred_at': ts_str,
-        'data': {
-            'action': action_contrato,
-            'notas_vendedor': f"Intervención: {accion_ejecutada}"
-        },
+        'data': data_accion,
         '_dt': ts,
         '_orden': store.contador + 1
     }

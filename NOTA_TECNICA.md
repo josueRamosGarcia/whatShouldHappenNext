@@ -24,7 +24,7 @@ El sistema implementa una arquitectura desacoplada por capas:
 ---
 
 ### 3. Contexto, Hechos, Inferencias e Información Faltante
-En cada evaluación se inyecta el expediente cronológico completo del caso. La salida de la IA distingue de forma auditable:
+En cada evaluación se inyecta el expediente cronológico completo del caso, incorporando tanto los mensajes del cliente como el contexto de lo que el ejecutivo le comunicó (`<lo_que_dijo_el_vendedor>`) para que la IA sepa qué dudas ya fueron resueltas. La salida de la IA distingue de forma auditable:
 - **Hechos observados (`hechos_observados`):** Afirmaciones objetivas asociadas obligatoriamente a un `event_id` existente (los IDs inventados o alucinados son purgados automáticamente).
 - **Inferencias (`inferencias`):** Deducciones semánticas justificadas en eventos específicos y etiquetadas con su nivel de certeza (`low`, `medium`, `high`).
 - **Información faltante (`informacion_faltante`):** Lagunas de contexto declaradas abiertamente (ej. falta de respuesta del cliente, dudas técnicas por confirmar internamente).

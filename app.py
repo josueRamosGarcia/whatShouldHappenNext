@@ -518,6 +518,13 @@ with tab2:
                     index=acc_idx,
                     key=f"fb_acc_{cid}"
                 )
+                detalles_accion = st.text_area(
+                    "💬 Contexto de la llamada/correo (lo que le comunicamos al cliente):",
+                    placeholder="Ej: Se le aclaró que el alcance cubre despliegue en AWS, configuración de servidores y 1 mes de garantía post-lanzamiento...",
+                    help="Este contexto se inyecta al expediente para que la IA sepa exactamente qué se aclaró y no repita la misma sugerencia.",
+                    key=f"fb_det_{cid}",
+                    height=85
+                )
                 res_sel = st.selectbox(
                     "Resultado o respuesta del prospecto:",
                     [
@@ -574,6 +581,7 @@ with tab2:
                     case_id=cid,
                     accion_ejecutada=accion_sel,
                     tipo_resultado=tipo_res,
+                    detalles_accion=detalles_accion,
                     texto_cliente=texto_cliente,
                     fecha_desbloqueo_iso=fecha_bloqueo,
                     now=st.session_state.now
