@@ -8,6 +8,7 @@ inspeccion detallada por caso, deteccion de que cambio entre versiones y exporta
 
 import os
 import json
+from datetime import timedelta
 import streamlit as st
 
 from src.ingest import Store, cargar_eventos, parse_fecha
@@ -164,62 +165,6 @@ st.markdown("""
         box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         margin-bottom: 1rem;
     }
-
-    /* ---------- Timeline de eventos ---------- */
-    .timeline { position: relative; margin: 0.5rem 0 1rem 0.4rem; padding-left: 1.4rem; border-left: 2px solid rgba(128,128,128,0.25); }
-    .tl-item { position: relative; margin-bottom: 0.9rem; }
-    .tl-dot {
-        position: absolute; left: -2.02rem; top: 0.9rem;
-        width: 12px; height: 12px; border-radius: 50%;
-        border: 2px solid var(--background-color, #fff);
-        background: #9E9E9E;
-    }
-    .tl-item.ev-msg .tl-dot { background: #1E88E5; }
-    .tl-item.ev-open .tl-dot { background: #9E9E9E; }
-    .tl-item.ev-close .tl-dot { background: #C62828; }
-    .tl-item.ev-block .tl-dot { background: #EF6C00; }
-    .tl-item.ev-other .tl-dot { background: #43A047; }
-    .tl-card {
-        border-radius: 10px; padding: 0.7rem 0.9rem;
-        background-color: var(--secondary-background-color);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .tl-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-bottom: 0.15rem; }
-    .tl-type { font-weight: 700; font-size: 0.92rem; }
-    .tl-id {
-        font-family: monospace; font-size: 0.75rem; padding: 0.05rem 0.4rem;
-        border-radius: 5px; background: rgba(128,128,128,0.15);
-    }
-    .tl-date { font-size: 0.75rem; opacity: 0.65; margin-left: auto; }
-    .tl-quote {
-        margin: 0.4rem 0 0.2rem 0; padding: 0.4rem 0.7rem;
-        border-left: 3px solid #1E88E5; border-radius: 4px;
-        background: rgba(30,136,229,0.08); font-size: 0.92rem; font-style: italic;
-    }
-    .tl-kvs { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem; }
-    .kv {
-        font-size: 0.78rem; padding: 0.15rem 0.5rem; border-radius: 6px;
-        background: rgba(128,128,128,0.12); border: 1px solid rgba(128,128,128,0.22);
-    }
-    .kv b { opacity: 0.7; font-weight: 600; margin-right: 0.3rem; }
-
-    /* ---------- Tarjeta de recomendacion ---------- */
-    .rec-card {
-        border-radius: 12px; padding: 1.2rem 1.3rem; margin-bottom: 1rem;
-        background-color: var(--secondary-background-color);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        border-top: 4px solid #1E88E5;
-    }
-    .rec-top { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.2rem; }
-    .rec-action { font-size: 1.5rem; font-weight: 700; }
-    .rec-case { font-size: 0.8rem; opacity: 0.65; margin-left: auto; font-family: monospace; }
-    .rec-when { font-size: 0.95rem; opacity: 0.85; margin-bottom: 0.9rem; }
-    .rec-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.6; margin: 0.9rem 0 0.3rem 0; }
-    .rec-reason { font-size: 0.97rem; line-height: 1.5; }
-    .rec-sub { font-size: 0.85rem; opacity: 0.75; margin-top: 0.25rem; }
-    .rec-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.9rem; }
-    .rec-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-    .rec-list { margin: 0; padding-left: 1.2rem; font-size: 0.92rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -238,136 +183,6 @@ def leer(ruta: str) -> str:
     """Lee el contenido de un archivo UTF-8."""
     with open(ruta, encoding='utf-8') as f:
         return f.read()
-
-
-# ---------- Helpers de presentacion (solo visual, no tocan la logica) ----------
-def _esc(valor) -> str:
-    """Escapa texto para insertarlo de forma segura en HTML."""
-    return _html.escape(str(valor), quote=True)
-
-
-def _fmt_valor(valor) -> str:
-    """Convierte cualquier valor a texto legible."""
-    if valor is None:
-        return '-'
-    if isinstance(valor, bool):
-        return 'Sí' if valor else 'No'
-    if isinstance(valor, (dict, list)):
-        return json.dumps(valor, ensure_ascii=False)
-    return str(valor)
-
-
-def _estilo_evento(tipo: str):
-    """Devuelve (icono, clase css) segun el tipo de evento."""
-    t = str(tipo).lower()
-    if any(k in t for k in ('close', 'cierre', 'cerrado')):
-        return '🔒', 'ev-close'
-    if any(k in t for k in ('block', 'bloq', 'opt', 'unsub', 'prohib', 'restric', 'dnc')):
-        return '⛔', 'ev-block'
-    if any(k in t for k in ('message', 'mensaje', 'reply', 'respuesta', 'inbound')):
-        return '💬', 'ev-msg'
-    if any(k in t for k in ('open', 'apertura')):
-        return '👁️', 'ev-open'
-    return '📌', 'ev-other'
-
-
-def html_timeline(eventos) -> str:
-    """Construye la linea de tiempo HTML de los eventos de un caso."""
-    claves_texto = ('texto', 'text', 'mensaje', 'message', 'body', 'contenido')
-    items = []
-    for ev in eventos:
-        icono, clase = _estilo_evento(ev['event_type'])
-        fecha_str = ev['_dt'].strftime('%Y-%m-%d %H:%M:%S UTC')
-        data = ev.get('data', {}) or {}
-
-        cita = ''
-        chips = ''
-        if isinstance(data, dict):
-            clave_texto = next((k for k in claves_texto if data.get(k)), None)
-            if clave_texto:
-                cita = f"<div class='tl-quote'>“{_esc(data[clave_texto])}”</div>"
-            chips_html = ''.join(
-                f"<span class='kv'><b>{_esc(k)}</b>{_esc(_fmt_valor(v))}</span>"
-                for k, v in data.items() if k != clave_texto
-            )
-            if chips_html:
-                chips = f"<div class='tl-kvs'>{chips_html}</div>"
-        elif data:
-            chips = f"<div class='tl-kvs'><span class='kv'>{_esc(_fmt_valor(data))}</span></div>"
-
-        items.append(
-            f"<div class='tl-item {clase}'><div class='tl-dot'></div><div class='tl-card'>"
-            f"<div class='tl-head'><span class='tl-type'>{icono} {_esc(ev['event_type'])}</span>"
-            f"<span class='tl-id'>{_esc(ev['event_id'])}</span>"
-            f"<span class='tl-date'>🕒 {_esc(fecha_str)}</span></div>"
-            f"{cita}{chips}</div></div>"
-        )
-    return f"<div class='timeline'>{''.join(items)}</div>"
-
-
-_ICONOS_ACCION = {
-    'contact': '📞', 'wait': '⏳', 'escalate': '🚨',
-    'resolve_objection': '💬', 'no_action': '🚫',
-}
-_CLASE_CONFIANZA = {'high': 'badge-high', 'medium': 'badge-medium', 'low': 'badge-low'}
-_CLASE_RIESGO = {'low': 'badge-high', 'medium': 'badge-medium', 'high': 'badge-blocked'}
-_CAMPOS_REC = {
-    'case_id', 'action', 'timing', 'scheduled_for', 'reason', 'evidence_event_ids',
-    'confidence', 'confidence_reason', 'risk_level', 'requires_human_review', 'missing_information',
-}
-
-
-def html_recomendacion(r: dict) -> str:
-    """Construye la tarjeta HTML de la recomendacion vigente."""
-    accion = r.get('action')
-    icono = _ICONOS_ACCION.get(accion, '🎯')
-    timing = r.get('timing')
-    programado = r.get('scheduled_for')
-    conf = r.get('confidence')
-    riesgo = r.get('risk_level')
-    revision = r.get('requires_human_review')
-
-    cuando = f"⏱️ Cuándo: <b>{_esc(_fmt_valor(timing))}</b>"
-    if programado:
-        cuando += f" &nbsp;·&nbsp; 📅 Programado para: <b>{_esc(programado)}</b>"
-
-    badges = (
-        f"<span class='metric-badge {_CLASE_CONFIANZA.get(conf, 'badge-low')}'>Confianza: {_esc(_fmt_valor(conf))}</span>"
-        f"<span class='metric-badge {_CLASE_RIESGO.get(riesgo, 'badge-low')}'>Riesgo: {_esc(_fmt_valor(riesgo))}</span>"
-        f"<span class='metric-badge {'badge-blocked' if revision else 'badge-high'}'>"
-        f"{'👤 Requiere revisión humana' if revision else '✅ Sin revisión humana'}</span>"
-    )
-
-    partes = [
-        "<div class='rec-card'>",
-        f"<div class='rec-top'><span class='rec-action'>{icono} {_esc(_fmt_valor(accion))}</span>"
-        f"<span class='rec-case'>{_esc(_fmt_valor(r.get('case_id')))}</span></div>",
-        f"<div class='rec-when'>{cuando}</div>",
-        f"<div class='rec-badges' style='margin-top:0;'>{badges}</div>",
-        "<div class='rec-label'>Razón</div>",
-        f"<div class='rec-reason'>{_esc(_fmt_valor(r.get('reason')))}</div>",
-    ]
-
-    if r.get('confidence_reason'):
-        partes.append(f"<div class='rec-sub'>🔎 {_esc(r['confidence_reason'])}</div>")
-
-    evidencia = r.get('evidence_event_ids') or []
-    if evidencia:
-        chips = ''.join(f"<span class='tl-id'>{_esc(e)}</span>" for e in evidencia)
-        partes.append(f"<div class='rec-label'>Evidencia</div><div class='rec-chips'>{chips}</div>")
-
-    faltantes = r.get('missing_information') or []
-    if faltantes:
-        lis = ''.join(f"<li>{_esc(_fmt_valor(m))}</li>" for m in faltantes)
-        partes.append(f"<div class='rec-label'>Información faltante</div><ul class='rec-list'>{lis}</ul>")
-
-    extras = {k: v for k, v in r.items() if k not in _CAMPOS_REC}
-    if extras:
-        kvs = ''.join(f"<span class='kv'><b>{_esc(k)}</b>{_esc(_fmt_valor(v))}</span>" for k, v in extras.items())
-        partes.append(f"<div class='rec-label'>Otros campos</div><div class='tl-kvs'>{kvs}</div>")
-
-    partes.append("</div>")
-    return ''.join(partes)
 
 
 # Barra lateral de navegacion y controles
@@ -498,13 +313,16 @@ with tab2:
             st.subheader('📜 Historial cronológico de eventos')
             if cid in store.casos:
                 eventos_ordenados = sorted(store.casos[cid], key=lambda e: (e['_dt'], e['_orden']))
-                st.markdown(html_timeline(eventos_ordenados), unsafe_allow_html=True)
+                for ev in eventos_ordenados:
+                    fecha_str = ev['_dt'].strftime('%Y-%m-%d %H:%M:%S UTC')
+                    data_str = json.dumps(ev.get('data', {}), ensure_ascii=False)
+                    st.markdown(f"- **`{ev['event_id']}`** `{fecha_str}` | `{ev['event_type']}`  \n  `{data_str}`")
             else:
                 st.write("No hay eventos registrados para este caso.")
 
         with col_der:
             st.subheader('🎯 Recomendación vigente')
-            st.markdown(html_recomendacion(r), unsafe_allow_html=True)
+            st.json(r)
 
             interp = meta.get('interpretacion')
             if interp:
