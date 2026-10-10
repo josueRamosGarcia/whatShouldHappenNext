@@ -12,6 +12,7 @@ El sistema implementa una arquitectura desacoplada por capas:
 4. **Interpretación Semántica con IA (`src/interpreter.py` / `src/llm.py`):** Si está habilitada, Gemini analiza el contexto cronológico y propone una recomendación estructurada.
 5. **Capa de Validación y Fallback (`src/validator.py` / `src/baseline.py`):** Valida la recomendación contra el contrato de 11 campos y las reglas activas. Si la IA viola una restricción o falla la conexión, conmuta automáticamente a la decisión base determinista.
 6. **Historial y Versionado (`src/history.py`):** Detecta cambios al reevaluar con nuevos eventos, conserva versiones previas y exporta el JSON oficial de decisiones.
+7. **Especialización Dev Shop y Bucle Cerrado (`src/devshop.py`):** Modela el ciclo comercial para consultoras de software ($150k MXN), extrayendo temperatura del lead, tipo de objeción técnica y permitiendo al ejecutivo registrar el resultado de su intervención para cerrar el bucle y detonar la siguiente decisión.
 
 ---
 

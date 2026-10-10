@@ -19,12 +19,17 @@ El sistema procesa el ciclo de vida de propuestas comerciales, analiza señales 
    - **Motor de Reglas Determinista:** Validador formal previo a la publicación que garantiza el 100% de cumplimiento de las restricciones R1 a R6.
    - **Respaldo Determinista Seguro (`baseline.py`):** Si la IA falla, no está configurada o propone una acción inválida, el sistema conmuta automáticamente a la decisión base determinista sin interrumpir la operación.
 
-3. **Trazabilidad y Reevaluación ("¿Qué cambió?"):**
+3. **Especialización Dev Shop y Bucle Cerrado (Closed-Loop Feedback):**
+   - Diseñado para agencias y consultoras de desarrollo de software con cotizaciones de alto valor ($150,000 MXN en Fixed Price / T&M).
+   - Diagnóstico comercial: etapa en el embudo, temperatura del lead y foco de objeción técnica.
+   - **Bucle Cerrado Interactivo:** El ejecutivo registra el resultado de la acción ejecutada, inyectando eventos compatibles con el contrato (`action.executed`, `message.received`, `constraint.updated`, `case.closed`) y detonando la reevaluación inmediata.
+
+4. **Trazabilidad y Reevaluación ("¿Qué cambió?"):**
    - Reevaluación reactiva al recibir nuevos eventos.
    - Historial de versiones que detecta y destaca los cambios entre la decisión anterior y la vigente (ej. caso `P06`).
    - Exportación de las decisiones vigentes en formato JSON estandarizado conforme al contrato de 11 campos.
 
-4. **Interfaz Visual Intuitiva (Streamlit):**
+5. **Interfaz Visual Intuitiva (Streamlit):**
    - **Pestaña 📊 Casos:** Tabla consolidada con estado, timing, confianza, riesgo y bloqueos activos.
    - **Pestaña 🔍 Detalle del Caso:** Historial cronológico de eventos, recomendación vigente, desglose de IA (hechos, inferencias, faltantes) y comparativa de cambios. Alertas visuales destacadas para contactos bloqueados.
    - **Pestaña 📁 Errores y exportar:** Métricas de ingesta, auditoría de duplicados y descarga del archivo `recommendations.json`.
